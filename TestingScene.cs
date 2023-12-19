@@ -53,7 +53,7 @@ namespace BParticles
                 // Randomize velocity (optional)
                 float vx = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
                 float vy = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
-                Vector2 velocity = new Vector2(vx, vy);
+                Vector2 velocity = new Vector2(vx*10, vy*10);
 
                 // Randomize color (optional)
                 Color color = new Color(

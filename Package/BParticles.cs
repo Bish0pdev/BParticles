@@ -42,6 +42,7 @@ namespace BParticles
                 // Adjust particle lifespan based on seconds
                 particle.Lifespan -= (float)gameTime.ElapsedGameTime.TotalSeconds * timeScale;
 
+                particle.Position += particle.Velocity * (float)gameTime.ElapsedGameTime.TotalSeconds;
 
                 if (particle.Lifespan <= 0)
                 {
