@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 
 namespace BParticles
 {
@@ -11,6 +12,7 @@ namespace BParticles
 
         private ParticleSystem _particleSystem;
         private Vector2 _ScreenCenter;
+        private Random random = new Random();
         public TestingScene()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -33,8 +35,6 @@ namespace BParticles
 
             _particleSystem = new ParticleSystem(particleTexture);
 
-            _particleSystem.AddParticle(_ScreenCenter, Vector2.Zero, Color.White, 2f, .25f, particleTexture);
-
         }
 
         protected override void Update(GameTime gameTime)
@@ -42,7 +42,35 @@ namespace BParticles
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            // TODO: Add your update logic here
+            float spawnChance = 0.1f; // Adjust this value based on the desired spawn rate
+
+            if (random.NextDouble() < spawnChance)
+            {
+                // Randomize position within the screen bounds
+                float x = (float)random.NextDouble() * GraphicsDevice.Viewport.Width;
+                float y = (float)random.NextDouble() * GraphicsDevice.Viewport.Height;
+
+                // Randomize velocity (optional)
+                float vx = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
+                float vy = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
+                Vector2 velocity = new Vector2(vx, vy);
+
+                // Randomize color (optional)
+                Color color = new Color(
+                    (float)random.NextDouble(),
+                    (float)random.NextDouble(),
+                    (float)random.NextDouble()
+                );
+
+                // Randomize lifespan (optional)
+                float lifespan = (float)random.NextDouble() * 2 + 1; // Random value between 1 and 3 seconds
+
+                // Randomize scale (optional)
+                float scale = (float)random.NextDouble() * 0.5f + 0.5f; // Random value between 0.5 and 1.0
+
+                // Add the new particle to the particle system
+                _particleSystem.AddParticle(new Vector2(x, y), velocity, color, lifespan, scale, _particleSystem.ParticleTexture);
+            }
 
             _particleSystem.Update(gameTime);
 
