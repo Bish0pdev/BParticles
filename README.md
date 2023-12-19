@@ -8,4 +8,4 @@ BParticles is a simple and expandable framework for using particles in Monogame.
 
 ## Usage
 
-You can clone this project or just copy the [Package](Package) folder into your own monogame project. You can also run the [TestingScene](TestingScene.cs) file for a starter template. 
+Simply copy the [Package](Package) folder into your own monogame project. You can also clone this repository and run the [TestingScene](TestingScene.cs) file for a starter template. 

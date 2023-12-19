@@ -42,6 +42,8 @@ namespace BParticles
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
+            //--Sample particle system--
+
             float spawnChance = 0.1f; // Adjust this value based on the desired spawn rate
 
             if (random.NextDouble() < spawnChance)
