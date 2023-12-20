@@ -35,7 +35,11 @@ namespace BParticles
 
             Texture2D particleTexture = Content.Load<Texture2D>("square");
             font = Content.Load<SpriteFont>("Holofont");
+
+            //Init the particle system and define the desired texture
             _particleSystem = new ParticleSystem(particleTexture);
+            _particleSystem.SystemPosition = _ScreenCenter;
+            _particleSystem.Play();
 
         }
 
@@ -44,13 +48,37 @@ namespace BParticles
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            //--Sample particle system--
 
-            float spawnRatePerSecond = 10.0f; // Adjust this value based on the desired spawn rate per second
-            float spawnInterval = 1.0f / spawnRatePerSecond; // Calculate the time interval between spawns
+            _particleSystem.Update(gameTime);
 
-            elapsedSpawnTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
+            base.Update(gameTime);
+        }
+        
 
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.Black);
+
+            _spriteBatch.Begin();
+            _particleSystem.Draw(_spriteBatch);
+
+            _spriteBatch.DrawString(
+            font,
+            $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
+            new Vector2(GraphicsDevice.Viewport.Width - 100, 10),
+            Color.White
+            );
+
+            _spriteBatch.End();
+
+
+            base.Draw(gameTime);
+        }
+        #region Manual Spawning Examples
+
+        private void RandomSpawns(float spawnInterval)
+        {
             while (elapsedSpawnTime > spawnInterval)
             {
                 // Randomize position
@@ -76,36 +104,12 @@ namespace BParticles
                 float scale = (float)random.NextDouble() * 0.5f + 0.5f; // Random value between 0.5 and 1.0
 
                 // Add the new particle
-                _particleSystem.AddParticle(new Vector2(x, y), velocity, color, lifespan, scale, _particleSystem.ParticleTexture);
+                _particleSystem.AddParticle(new Vector2(x, y), velocity, color, lifespan, scale);
 
                 elapsedSpawnTime -= spawnInterval; // Subtract the spawn interval to account for the spawn
             }
-
-            _particleSystem.Update(gameTime);
-
-            base.Update(gameTime);
         }
-
-        
-
-        protected override void Draw(GameTime gameTime)
-        {
-            GraphicsDevice.Clear(Color.Black);
-
-            _spriteBatch.Begin();
-            _particleSystem.Draw(_spriteBatch);
-
-            _spriteBatch.DrawString(
-            // Use your preferred SpriteFont and color
-            font,
-            $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
-            new Vector2(GraphicsDevice.Viewport.Width - 100, 10),
-            Color.White
-            );
-            _spriteBatch.End();
-
-
-            base.Draw(gameTime);
-        }
+        #endregion
     }
+
 }
