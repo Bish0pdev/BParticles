@@ -12,6 +12,7 @@ namespace BParticles
         public Vector2 Velocity;
         public Color Color;
         public float Lifespan = 1; //In Seconds
+        public float TimeAlive = 0;
         public float Scale = 1.0f;
         public Texture2D Texture;
     }
@@ -39,10 +40,16 @@ namespace BParticles
             {
                 Particle particle = particles[i];
 
-                // Adjust particle lifespan based on seconds
+                // Adjust particle lifespan based on seconds, and update the timealive variable
                 particle.Lifespan -= (float)gameTime.ElapsedGameTime.TotalSeconds * timeScale;
-
+                particle.TimeAlive += (float)gameTime.ElapsedGameTime.TotalSeconds * timeScale;
+                // Adjust particle position based on velocity
                 particle.Position += particle.Velocity * (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+                //| OPTIONAL FEATURES |//
+
+
+
 
                 if (particle.Lifespan <= 0)
                 {
