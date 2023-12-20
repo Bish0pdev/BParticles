@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using static System.Formats.Asn1.AsnWriter;
-
+using System.Diagnostics;
 namespace BParticles
 {
 	public class Particle
@@ -18,8 +18,8 @@ namespace BParticles
 
     public class ParticleSystem
     {
-        private List<Particle> particles;
-        public  float timeScale =1.0f;
+        public List<Particle> particles;
+        public  float timeScale = 1f;
         public Texture2D ParticleTexture { get; set; }
 
         public Vector2 SystemPosition { get; set; }
@@ -30,6 +30,11 @@ namespace BParticles
         public float SpawnRate { get; set; } = 0.1f; // Default spawn rate in seconds
         private float elapsedSpawnTime = 0;
 
+        public delegate void ParticleSpawnModifier(Particle particle);
+
+        public List<ParticleSpawnModifier> spawnModifiers = new List<ParticleSpawnModifier>();
+
+        public void AddSpawnModifier(ParticleSpawnModifier modifier) { spawnModifiers.Add(modifier); }
 
         // Delegate type for functions that modify particle attributes over time
         /// <summary>
@@ -75,15 +80,15 @@ namespace BParticles
         /// <param name="gameTime">Snapshot of the game's timing state.</param>
         public void Update(GameTime gameTime)
         {
+            // Calculate elapsed time since the last update
+            elapsedSpawnTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
+            
             if (SpawnParticles)
             {
-                // Calculate elapsed time since the last update
-                elapsedSpawnTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
-
                 // Spawn particles based on the spawn rate
                 while (elapsedSpawnTime > SpawnRate)
                 {
-                    AddParticle();
+                    AddParticle(spawnModifiers);
                     elapsedSpawnTime -= SpawnRate;
                 }
             }
@@ -95,6 +100,7 @@ namespace BParticles
                 foreach (var modifier in attributeModifiers)
                 {
                     modifier(particle, (float)gameTime.ElapsedGameTime.TotalSeconds);
+
                 }
             }
         }
@@ -107,13 +113,16 @@ namespace BParticles
         {
             foreach (var particle in particles)
             {
+                // Calculate the origin as half of the particle texture size
+                Vector2 origin = new Vector2(particle.Texture.Width / 2f, particle.Texture.Height / 2f);
+
                 spriteBatch.Draw(
                     particle.Texture,
                     particle.Position,
                     null,
                     particle.Color,
                     0f,
-                    Vector2.Zero,
+                    origin, // Set the origin to the center
                     particle.Scale,
                     SpriteEffects.None,
                     0f
@@ -129,7 +138,7 @@ namespace BParticles
         /// <param name="color">The color of the particle.</param>
         /// <param name="lifespan">The lifespan of the particle in seconds.</param>
         /// <param name="scale">The scale of the particle.</param>
-        public void AddParticle(Vector2 position, Vector2 velocity, Color color, float lifespan, float scale)
+        public Particle AddParticle(Vector2 position, Vector2 velocity, Color color, float lifespan, float scale)
         {
             Particle particle = new Particle
             {
@@ -142,6 +151,7 @@ namespace BParticles
             };
 
             particles.Add(particle);
+            return particle;
         }
 
         /// <summary>
@@ -149,22 +159,37 @@ namespace BParticles
         /// </summary>
         /// <param name="position">The initial position of the particle.</param>
         /// <param name="velocity">The initial velocity of the particle.</param>
-        public void AddParticle(Vector2 position, Vector2 velocity)
+        public Particle AddParticle(Vector2 position, Vector2 velocity)
         {
-            AddParticle(position, velocity, Color.White, 1, 1);
+            return AddParticle(position, velocity, Color.White, 1, 1);
         }
         /// <summary>
         /// Adds a particle to the system with the default values, at the origin of the system
         /// </summary>
-        public void AddParticle()
+        public Particle AddParticle()
         {
-            AddParticle(SystemPosition, Vector2.Zero);
+            return AddParticle(SystemPosition, Vector2.One);
+        }
+
+        /// <summary>
+        /// Adds a particle to the system with the specified modifiers.
+        /// </summary>
+        /// <param name="modifiers">The list of modifiers to apply to the particle.</param>
+        public void AddParticle(List<ParticleSpawnModifier> modifiers)
+        {
+            Particle n = AddParticle();
+            // Apply modifiers to the particle
+            foreach (var modifier in modifiers)
+            {
+                modifier(n);
+            }
         }
         /// <summary>
         /// Allows the system to spawn particles on its own
         /// </summary>
-        public void Play() { SpawnParticles=true; }
-
+        public void Play() {
+            SpawnParticles = true;
+        }
         /// <summary>
         /// Stop's the system from spawning particles on its own, you can still spawn particles manually using the AddParticle() function
         /// </summary>
@@ -182,7 +207,7 @@ namespace BParticles
         protected virtual void UpdateLifetime(Particle particle, float elapsedSeconds)
         {
             particle.Lifespan -= elapsedSeconds * timeScale;
-
+            
             if (particle.Lifespan <= 0)
             {
                 particles.Remove(particle);
@@ -201,13 +226,10 @@ namespace BParticles
         {
             if (IsLocal)
             {
-                // If IsLocal is true, update the particle position based on SystemPosition
-                Vector2 positionoffset = particle.Position - SystemPosition;
-                particle.Position = (particle.Position + particle.Velocity * elapsedSeconds) + positionoffset;
+                particle.Position += particle.Velocity * elapsedSeconds;
             }
             else
             {
-                // If IsLocal is false, update the particle position independently
                 particle.Position += particle.Velocity * elapsedSeconds;
             }
         }

@@ -2,6 +2,9 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using static BParticles.ParticleSystem;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace BParticles
 {
@@ -38,6 +41,9 @@ namespace BParticles
 
             //Init the particle system and define the desired texture
             _particleSystem = new ParticleSystem(particleTexture);
+            _particleSystem.AddSpawnModifier(RandomColor);
+            _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f,50));
+            _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -48,9 +54,8 @@ namespace BParticles
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-
             _particleSystem.Update(gameTime);
-
+            
             base.Update(gameTime);
         }
         
@@ -63,18 +68,33 @@ namespace BParticles
             _spriteBatch.Begin();
             _particleSystem.Draw(_spriteBatch);
 
+
+            //Fps counter
             _spriteBatch.DrawString(
             font,
             $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
             new Vector2(GraphicsDevice.Viewport.Width - 100, 10),
             Color.White
             );
-
             _spriteBatch.End();
 
 
             base.Draw(gameTime);
         }
+
+        #region Example Particle Modifiers
+
+        public void RandomColor(Particle particle)
+        {
+            particle.Color = new Color(
+            (float)random.NextDouble(), // Red component
+            (float)random.NextDouble(), // Green component
+            (float)random.NextDouble(), // Blue component
+            1.0f                         // Alpha component (fully opaque)
+            );
+        }
+        #endregion
+
         #region Manual Spawning Examples
 
         private void RandomSpawns(float spawnInterval)
@@ -110,6 +130,14 @@ namespace BParticles
             }
         }
         #endregion
+
+        public static Vector2 GetRandomVector(float minValue, float maxValue)
+        {
+            Random random = new Random();
+            float x = (float)(random.NextDouble() * (maxValue - minValue) + minValue);
+            float y = (float)(random.NextDouble() * (maxValue - minValue) + minValue);
+            return new Vector2(x, y);
+        }
     }
 
 }
