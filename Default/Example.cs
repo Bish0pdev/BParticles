@@ -17,6 +17,10 @@ namespace BParticles
         private Random random = new Random();
         float elapsedSpawnTime = 0.0f;
         SpriteFont font;
+
+
+
+
         public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -46,11 +50,14 @@ namespace BParticles
 
             
             //Example particle system, Feel free to play with this
-            _particleSystem = new ParticleSystem(animsquareTexture, 2, 0.5f);
-            _particleSystem.AddSpawnModifier(x => x.Scale = 10f);
+            _particleSystem = new ParticleSystem(animsquareTexture, 2, 0.1f);
+            _particleSystem.SpawnRate = 0.01f;
             _particleSystem.AddSpawnModifier(RandomColor);
+            _particleSystem.AddSpawnModifier(x => x.Scale = 1f);
             _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f, 50));
-            _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
+            _particleSystem.AddSpawnModifier(x => x.Lifespan = 10f);
+            _particleSystem.AddAttributeModifier(ApplyGravity);
+            _particleSystem.AddAttributeModifier(BounceOffWalls);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -60,7 +67,11 @@ namespace BParticles
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
-
+            if (Keyboard.GetState().IsKeyDown(Keys.F1))
+            {
+                // Destroy all active particles
+                _particleSystem.ClearParticles();
+            }
             _particleSystem.Update(gameTime);
             
             base.Update(gameTime);
@@ -72,7 +83,12 @@ namespace BParticles
         {
             GraphicsDevice.Clear(Color.Black);
 
-            _spriteBatch.Begin();
+            _spriteBatch.Begin(SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone,
+            null);
             _particleSystem.Draw(_spriteBatch);
             _spriteBatch.End();
 
@@ -117,41 +133,58 @@ namespace BParticles
             1.0f                         // Alpha component (fully opaque)
             );
         }
-        #endregion
 
-        #region Manual Spawning Examples
-
-        private void RandomSpawns(float spawnInterval)
+        private const float Gravity = 100f;
+        // Particle attribute modifier for applying gravity
+        public void ApplyGravity(Particle particle, float elapsedSeconds)
         {
-            while (elapsedSpawnTime > spawnInterval)
+            // Gravity formula: acceleration = gravity constant * elapsed time
+            float acceleration = Gravity * elapsedSeconds;
+
+            // Apply the gravitational force in the downward direction (assuming positive Y is downward)
+            particle.Velocity += new Vector2(0, acceleration);
+        }
+
+        public void ChangeSize(Particle particle, float elapsedSeconds)
+        {
+            float growthRate = 0.1f; // Adjust as needed
+            particle.Scale += growthRate * elapsedSeconds;
+        }
+
+        public void DampVelocity(Particle particle, float elapsedSeconds)
+        {
+            float dampingFactor = 0.98f; // Adjust as needed
+            particle.Velocity *= MathF.Pow(dampingFactor, elapsedSeconds);
+        }
+
+        public void SinusoidalMotion(Particle particle, float elapsedSeconds)
+        {
+            float frequency = 2.0f; // Adjust as needed
+            float amplitude = 0.1f; // Adjust as needed
+            particle.Position.Y += amplitude * MathF.Sin(frequency * particle.Position.X);
+        }
+        public void BounceOffWalls(Particle particle, float elapsedSeconds)
+        {
+            Vector2 screenSize = new Vector2(Window.ClientBounds.Width, Window.ClientBounds.Height); // Adjust as needed
+            float damping = 1f;
+            if (particle.Position.X < 0 || particle.Position.X > screenSize.X)
             {
-                // Randomize position
-                float x = (float)random.NextDouble() * GraphicsDevice.Viewport.Width;
-                float y = (float)random.NextDouble() * GraphicsDevice.Viewport.Height;
-
-                // Randomize velocity
-                float vx = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
-                float vy = (float)(random.NextDouble() * 2 - 1); // Random value between -1 and 1
-                Vector2 velocity = new Vector2(vx * 10, vy * 10);
-
-                // Randomize color
-                Color color = new Color(
-                    (float)random.NextDouble(),
-                    (float)random.NextDouble(),
-                    (float)random.NextDouble()
-                );
-
-                // Randomize lifespan
-                float lifespan = (float)random.NextDouble() * 2 + 1; // Random value between 1 and 3 seconds
-
-                // Randomize scale
-                float scale = (float)random.NextDouble() * 0.5f + 0.5f; // Random value between 0.5 and 1.0
-
-                // Add the new particle
-                _particleSystem.AddParticle(new Vector2(x, y), velocity, color, lifespan, scale);
-
-                elapsedSpawnTime -= spawnInterval; // Subtract the spawn interval to account for the spawn
+                particle.Velocity.X *= -1 / damping;
             }
+            if (particle.Position.Y < 0 || particle.Position.Y > screenSize.Y)
+            {
+                particle.Velocity.Y *= -1 / damping;
+            }
+        }
+
+        public void RotateAroundPoint(Particle particle, float elapsedSeconds)
+        {
+            Vector2 rotationCenter = _ScreenCenter; // Adjust as needed
+            float rotationSpeed = MathHelper.ToRadians(90); // Adjust as needed
+            Vector2 offset = particle.Position - rotationCenter;
+            Matrix rotationMatrix = Matrix.CreateRotationZ(rotationSpeed * elapsedSeconds);
+            offset = Vector2.Transform(offset, rotationMatrix);
+            particle.Position = rotationCenter + offset;
         }
         #endregion
 
