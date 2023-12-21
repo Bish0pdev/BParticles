@@ -147,27 +147,47 @@ namespace BParticles
         }
 
         /// <summary>
-        /// Draws all particles in the system using the specified SpriteBatch.
+        /// Draws all particles in the system using the specified SpriteBatch using batch rendering.
         /// </summary>
         /// <param name="spriteBatch">The SpriteBatch used for drawing particles.</param>
         public void Draw(SpriteBatch spriteBatch)
         {
+            // Group particles by texture
+            Dictionary<Texture2D, List<Particle>> particleGroups = new Dictionary<Texture2D, List<Particle>>();
+
             foreach (var particle in particles)
             {
-                // Calculate the origin as half of the particle texture size
-                Vector2 origin = new Vector2(particle.Texture.Width / 2f, particle.Texture.Height / 2f);
+                if (!particleGroups.ContainsKey(particle.Texture))
+                {
+                    particleGroups[particle.Texture] = new List<Particle>();
+                }
 
-                spriteBatch.Draw(
-                    particle.Texture,
-                    particle.Position,
-                    null,
-                    particle.Color,
-                    0f,
-                    origin, // Set the origin to the center
-                    particle.Scale,
-                    SpriteEffects.None,
-                    0f
-                );
+                particleGroups[particle.Texture].Add(particle);
+            }
+
+            // Draw particles in batches
+            foreach (var group in particleGroups)
+            {
+                Texture2D texture = group.Key;
+                List<Particle> particlesWithSameTexture = group.Value;
+
+                foreach (var particle in particlesWithSameTexture)
+                {
+                    // Calculate the origin as half of the particle texture size
+                    Vector2 origin = new Vector2(particle.Texture.Width / 2f, particle.Texture.Height / 2f);
+
+                    spriteBatch.Draw(
+                        particle.Texture,
+                        particle.Position,
+                        null,
+                        particle.Color,
+                        0f,
+                        origin, // Set the origin to the center
+                        particle.Scale,
+                        SpriteEffects.None,
+                        0f
+                    );
+                }
             }
         }
 
