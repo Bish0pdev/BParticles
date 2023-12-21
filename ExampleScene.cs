@@ -43,9 +43,11 @@ namespace BParticles
 
             //Example particle system
             _particleSystem = new ParticleSystem(particleTexture);
+            _particleSystem.SpawnRate = 0.0001f;
             _particleSystem.AddSpawnModifier(RandomColor);
             _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f,50));
-            _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
+            _particleSystem.AddSpawnModifier(x => x.Lifespan = 100f);
+            _particleSystem.AddSpawnModifier(x => x.Scale = 0.1f);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -79,6 +81,14 @@ namespace BParticles
             new Vector2(GraphicsDevice.Viewport.Width - 100, 10),
             Color.White
             );
+
+            _spriteBatch.DrawString(
+                font,
+                $"Active Particles:{_particleSystem.particles.Count:0}",
+                new Vector2(GraphicsDevice.Viewport.Width - 200, 30),
+                Color.White
+                );
+            //
             _spriteBatch.End();
             base.Draw(gameTime);
         }

@@ -21,7 +21,7 @@ namespace BParticles
         /// <summary>
         /// List of particles in the particle system.
         /// </summary>
-        private List<Particle> particles;
+        public List<Particle> particles;
 
         /// <summary>
         /// The time scale for controlling the speed of particle updates.
