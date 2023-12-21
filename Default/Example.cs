@@ -18,18 +18,14 @@ namespace BParticles
         float elapsedSpawnTime = 0.0f;
         SpriteFont font;
 
-
-
-
+        public float particleLifetime = 1f;
+        public float InitialVel = 300f;
+        public Vector2 initialdir = Vector2.Zero;
         public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
-
-            IsFixedTimeStep = false;
-            _graphics.SynchronizeWithVerticalRetrace = false;
-            TargetElapsedTime = TimeSpan.FromMilliseconds(1.0 / 1000.0);
         }
 
         protected override void Initialize()
@@ -52,11 +48,8 @@ namespace BParticles
             //Example particle system, Feel free to play with this
             _particleSystem = new ParticleSystem(animsquareTexture, 2, 0.1f);
             _particleSystem.SpawnRate = 0.01f;
-            _particleSystem.AddSpawnModifier(RandomColor);
-            _particleSystem.AddSpawnModifier(x => x.Scale = 1f);
-            _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f, 50));
-            _particleSystem.AddSpawnModifier(x => x.Lifespan = 10f);
-            _particleSystem.AddAttributeModifier(ApplyGravity);
+            _particleSystem.AddSpawnModifier(SetSnowAttributes);
+            //_particleSystem.AddAttributeModifier(ApplyGravity);
             _particleSystem.AddAttributeModifier(BounceOffWalls);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
@@ -73,7 +66,7 @@ namespace BParticles
                 _particleSystem.ClearParticles();
             }
             _particleSystem.Update(gameTime);
-            
+            initialdir.X += (float)(random.NextDouble() * (1 - -1) + -1) * (float)gameTime.ElapsedGameTime.TotalSeconds;
             base.Update(gameTime);
         }
 
@@ -134,8 +127,16 @@ namespace BParticles
             );
         }
 
+        public void AimAtMouse(Particle particle)
+        {
+            MouseState mouseState = Mouse.GetState();
+
+            // Retrieve the mouse position
+            int mouseX = mouseState.X;
+            int mouseY = mouseState.Y;
+            particle.Velocity = Vector2.Normalize(new Vector2(mouseX, mouseY) - particle.Position) * InitialVel;
+        }
         private const float Gravity = 100f;
-        // Particle attribute modifier for applying gravity
         public void ApplyGravity(Particle particle, float elapsedSeconds)
         {
             // Gravity formula: acceleration = gravity constant * elapsed time
@@ -166,14 +167,13 @@ namespace BParticles
         public void BounceOffWalls(Particle particle, float elapsedSeconds)
         {
             Vector2 screenSize = new Vector2(Window.ClientBounds.Width, Window.ClientBounds.Height); // Adjust as needed
-            float damping = 1f;
             if (particle.Position.X < 0 || particle.Position.X > screenSize.X)
             {
-                particle.Velocity.X *= -1 / damping;
+                particle.Velocity.X *= -0.1f;
             }
             if (particle.Position.Y < 0 || particle.Position.Y > screenSize.Y)
             {
-                particle.Velocity.Y *= -1 / damping;
+                particle.Velocity.Y *= -0.1f;
             }
         }
 
@@ -186,6 +186,15 @@ namespace BParticles
             offset = Vector2.Transform(offset, rotationMatrix);
             particle.Position = rotationCenter + offset;
         }
+        private void SetSnowAttributes(Particle particle)
+        {
+            particle.Position = new Vector2(RandomHelper.NextFloat(0, Window.ClientBounds.Width), 0);
+            particle.Scale = (float)MathHelper.Clamp(RandomHelper.NextFloat(0.2f, 0.5f), 0.2f, 0.5f);
+            particle.Lifespan = RandomHelper.NextFloat(5f, 10f);
+            particle.Color = Color.White * RandomHelper.NextFloat(0.5f, 1f);
+            particle.Velocity = new Vector2(0, RandomHelper.NextFloat(30f, 100f)); // Falling vertically
+        }
+
         #endregion
 
         public static Vector2 GetRandomVector(float minValue, float maxValue)
@@ -197,4 +206,13 @@ namespace BParticles
         }
     }
 
+}
+public static class RandomHelper
+{
+    private static Random random = new Random();
+
+    public static float NextFloat(float minValue, float maxValue)
+    {
+        return (float)(random.NextDouble() * (maxValue - minValue) + minValue);
+    }
 }
