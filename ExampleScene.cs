@@ -8,7 +8,7 @@ using System.Diagnostics;
 
 namespace BParticles
 {
-    public class TestingScene : Game
+    public class ExampleScene : Game
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -18,7 +18,7 @@ namespace BParticles
         private Random random = new Random();
         float elapsedSpawnTime = 0.0f;
         SpriteFont font;
-        public TestingScene()
+        public ExampleScene()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
@@ -67,8 +67,9 @@ namespace BParticles
 
             _spriteBatch.Begin();
             _particleSystem.Draw(_spriteBatch);
+            _spriteBatch.End();
 
-
+            _spriteBatch.Begin();
             //Fps counter
             _spriteBatch.DrawString(
             font,
@@ -77,8 +78,6 @@ namespace BParticles
             Color.White
             );
             _spriteBatch.End();
-
-
             base.Draw(gameTime);
         }
 

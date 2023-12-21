@@ -1,3 +1,3 @@
 ﻿
-using var game = new BParticles.TestingScene();
+using var game = new BParticles.ExampleScene();
 game.Run();
