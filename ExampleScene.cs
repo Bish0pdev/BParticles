@@ -29,6 +29,8 @@ namespace BParticles
         {
             // TODO: Add your initialization logic here
             _ScreenCenter = new Vector2(Window.ClientBounds.Width/2,Window.ClientBounds.Height/2);
+            Window.Title = "BParticles Example";
+            Window.AllowUserResizing = false;
             base.Initialize();
         }
 
@@ -39,7 +41,7 @@ namespace BParticles
             Texture2D particleTexture = Content.Load<Texture2D>("square");
             font = Content.Load<SpriteFont>("Holofont");
 
-            //Init the particle system and define the desired texture
+            //Example particle system
             _particleSystem = new ParticleSystem(particleTexture);
             _particleSystem.AddSpawnModifier(RandomColor);
             _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f,50));

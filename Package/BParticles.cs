@@ -18,23 +18,64 @@ namespace BParticles
 
     public class ParticleSystem
     {
-        public List<Particle> particles;
-        public  float timeScale = 1f;
+        /// <summary>
+        /// List of particles in the particle system.
+        /// </summary>
+        private List<Particle> particles;
+
+        /// <summary>
+        /// The time scale for controlling the speed of particle updates.
+        /// </summary>
+        public float timeScale = 1f;
+
+        /// <summary>
+        /// Gets or sets the texture used for particles in the system.
+        /// </summary>
         public Texture2D ParticleTexture { get; set; }
 
+        /// <summary>
+        /// Gets or sets the position of the particle system in the game world.
+        /// </summary>
         public Vector2 SystemPosition { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the particle system updates particles locally or globally.
+        /// </summary>
         public bool IsLocal { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the particle system should spawn particles.
+        /// </summary>
         public bool SpawnParticles { get; set; }
 
+        /// <summary>
+        /// Gets or sets the spawn rate of particles in seconds.
+        /// </summary>
         public float SpawnRate { get; set; } = 0.1f; // Default spawn rate in seconds
+
+        /// <summary>
+        /// Elapsed time since the last particle spawn.
+        /// </summary>
         private float elapsedSpawnTime = 0;
 
+        /// <summary>
+        /// Delegate representing a function that modifies particle attributes during spawn.
+        /// </summary>
         public delegate void ParticleSpawnModifier(Particle particle);
 
+        /// <summary>
+        /// List of particle spawn modifiers that control particle attributes during spawn.
+        /// </summary>
         public List<ParticleSpawnModifier> spawnModifiers = new List<ParticleSpawnModifier>();
 
-        public void AddSpawnModifier(ParticleSpawnModifier modifier) { spawnModifiers.Add(modifier); }
+        /// <summary>
+        /// Adds a particle spawn modifier function to the list of modifiers.
+        /// </summary>
+        /// <param name="modifier">The particle spawn modifier function to be added.</param>
+        public void AddSpawnModifier(ParticleSpawnModifier modifier)
+        {
+            spawnModifiers.Add(modifier);
+        }
 
         // Delegate type for functions that modify particle attributes over time
         /// <summary>
