@@ -8,9 +8,9 @@ BParticles is a simple and expandable framework for using particles in Monogame.
 
 ## Usage
 
-Simply copy the [Package](Package) folder into your own monogame project. You can also clone this repository and run the [ExampleScene](ExampleScene.cs) file for a starter template. 
+Simply copy the [Package](Package) folder into your own monogame project. You can also clone this repository and run any script in the [Examples](Examples) folder for a starter template. 
 
-Once set up, creating a new particle system in BParticles can be done in as little as *4* lines of code.
+Once set up in your own project, creating a new particle system in BParticles can be done in as little as *4* lines of code.
 
 1) Instantiate the new system (particleTexture can be any Texture2D)
 ```

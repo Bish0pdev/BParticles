@@ -2,13 +2,12 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
-using static BParticles.ParticleSystem;
 using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace BParticles
 {
-    public class ExampleScene : Game
+    public class Example : Game
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -18,11 +17,15 @@ namespace BParticles
         private Random random = new Random();
         float elapsedSpawnTime = 0.0f;
         SpriteFont font;
-        public ExampleScene()
+        public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+
+            IsFixedTimeStep = false;
+            _graphics.SynchronizeWithVerticalRetrace = false;
+            TargetElapsedTime = TimeSpan.FromMilliseconds(1.0 / 1000.0);
         }
 
         protected override void Initialize()
@@ -41,13 +44,11 @@ namespace BParticles
             Texture2D particleTexture = Content.Load<Texture2D>("square");
             font = Content.Load<SpriteFont>("Holofont");
 
-            //Example particle system
+            //Example particle system, Feel free to play with this
             _particleSystem = new ParticleSystem(particleTexture);
-            _particleSystem.SpawnRate = 0.0001f;
             _particleSystem.AddSpawnModifier(RandomColor);
-            _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f,50));
-            _particleSystem.AddSpawnModifier(x => x.Lifespan = 100f);
-            _particleSystem.AddSpawnModifier(x => x.Scale = 0.1f);
+            _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f, 50));
+            _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -62,7 +63,7 @@ namespace BParticles
             
             base.Update(gameTime);
         }
-        
+
 
 
         protected override void Draw(GameTime gameTime)
@@ -74,22 +75,32 @@ namespace BParticles
             _spriteBatch.End();
 
             _spriteBatch.Begin();
-            //Fps counter
-            _spriteBatch.DrawString(
-            font,
-            $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
-            new Vector2(GraphicsDevice.Viewport.Width - 100, 10),
-            Color.White
-            );
-
+            // FPS counter
             _spriteBatch.DrawString(
                 font,
-                $"Active Particles:{_particleSystem.particles.Count:0}",
-                new Vector2(GraphicsDevice.Viewport.Width - 200, 30),
+                $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
+                new Vector2(10, 10),
                 Color.White
-                );
+            );
+
+            // Active Particles counter
+            _spriteBatch.DrawString(
+                font,
+                $"Active Particles: {_particleSystem.particles.Count:0}",
+                new Vector2(10, 30),
+                Color.White
+            );
+
+            // Draw Calls counter
+            _spriteBatch.DrawString(
+                font,
+                $"Draw Calls: {GraphicsDevice.Metrics.DrawCount}",
+                new Vector2(10, 50),
+                Color.White
+            );
             //
             _spriteBatch.End();
+
             base.Draw(gameTime);
         }
 
