@@ -40,12 +40,14 @@ namespace BParticles
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            Texture2D particleTexture = Content.Load<Texture2D>("square");
+            Texture2D squareTexture = Content.Load<Texture2D>("square");
+            Texture2D animsquareTexture = Content.Load<Texture2D>("animsquare");
             font = Content.Load<SpriteFont>("Holofont");
 
+            
             //Example particle system, Feel free to play with this
-            _particleSystem = new ParticleSystem(particleTexture);
+            _particleSystem = new ParticleSystem(animsquareTexture, 2, 0.5f);
+            _particleSystem.AddSpawnModifier(x => x.Scale = 10f);
             _particleSystem.AddSpawnModifier(RandomColor);
             _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f, 50));
             _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
