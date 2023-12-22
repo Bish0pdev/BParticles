@@ -12,20 +12,24 @@ namespace BParticles
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        private ParticleSystem _particleSystem;
+        private ParticleSystem Snow;
         private Vector2 _ScreenCenter;
         private Random random = new Random();
         float elapsedSpawnTime = 0.0f;
-        SpriteFont font;
 
-        public float particleLifetime = 1f;
-        public float InitialVel = 300f;
+        private int floor_height = 100;
+
+        SpriteFont font;
         public Vector2 initialdir = Vector2.Zero;
+
+        Texture2D pixelTexture;
         public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
+            _graphics.PreferredBackBufferWidth = 1920;
+            _graphics.PreferredBackBufferHeight = 1080;
         }
 
         protected override void Initialize()
@@ -40,19 +44,21 @@ namespace BParticles
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            Texture2D squareTexture = Content.Load<Texture2D>("square");
+            pixelTexture = Content.Load<Texture2D>("square");
             Texture2D animsquareTexture = Content.Load<Texture2D>("animsquare");
             font = Content.Load<SpriteFont>("Holofont");
 
-            
+
             //Example particle system, Feel free to play with this
-            _particleSystem = new ParticleSystem(animsquareTexture, 2, 0.1f);
-            _particleSystem.SpawnRate = 0.01f;
-            _particleSystem.AddSpawnModifier(SetSnowAttributes);
-            //_particleSystem.AddAttributeModifier(ApplyGravity);
-            _particleSystem.AddAttributeModifier(BounceOffWalls);
-            _particleSystem.SystemPosition = _ScreenCenter;
-            _particleSystem.Play();
+            Snow = new ParticleSystem(animsquareTexture, 2, 0.1f);
+            Snow.SpawnRate = 0.01f;
+            Snow.AddSpawnModifier(SetSnowAttributes);
+            Snow.AddAttributeModifier(AttractToMouse);
+            Snow.AddAttributeModifier(ApplyGravity);
+            Snow.AddAttributeModifier(BounceOffWalls);
+            Snow.AddAttributeModifier(Friction);
+            Snow.SystemPosition = _ScreenCenter;
+            Snow.Play();
 
         }
 
@@ -63,10 +69,9 @@ namespace BParticles
             if (Keyboard.GetState().IsKeyDown(Keys.F1))
             {
                 // Destroy all active particles
-                _particleSystem.ClearParticles();
+                Snow.ClearParticles();
             }
-            _particleSystem.Update(gameTime);
-            initialdir.X += (float)(random.NextDouble() * (1 - -1) + -1) * (float)gameTime.ElapsedGameTime.TotalSeconds;
+            Snow.Update(gameTime);
             base.Update(gameTime);
         }
 
@@ -74,7 +79,7 @@ namespace BParticles
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.Black);
+            GraphicsDevice.Clear(Color.LightSkyBlue);
 
             _spriteBatch.Begin(SpriteSortMode.Deferred,
             BlendState.AlphaBlend,
@@ -82,7 +87,15 @@ namespace BParticles
             DepthStencilState.None,
             RasterizerState.CullNone,
             null);
-            _particleSystem.Draw(_spriteBatch);
+            
+
+            _spriteBatch.Draw(
+            pixelTexture,
+            new Rectangle(0, GraphicsDevice.Viewport.Height - floor_height, GraphicsDevice.Viewport.Width, floor_height),
+            Color.Green
+            );
+
+            Snow.Draw(_spriteBatch);
             _spriteBatch.End();
 
             _spriteBatch.Begin();
@@ -94,19 +107,11 @@ namespace BParticles
                 Color.White
             );
 
-            // Active Particles counter
-            _spriteBatch.DrawString(
-                font,
-                $"Active Particles: {_particleSystem.particles.Count:0}",
-                new Vector2(10, 30),
-                Color.White
-            );
-
             // Draw Calls counter
             _spriteBatch.DrawString(
                 font,
                 $"Draw Calls: {GraphicsDevice.Metrics.DrawCount}",
-                new Vector2(10, 50),
+                new Vector2(10, 30),
                 Color.White
             );
             //
@@ -127,15 +132,6 @@ namespace BParticles
             );
         }
 
-        public void AimAtMouse(Particle particle)
-        {
-            MouseState mouseState = Mouse.GetState();
-
-            // Retrieve the mouse position
-            int mouseX = mouseState.X;
-            int mouseY = mouseState.Y;
-            particle.Velocity = Vector2.Normalize(new Vector2(mouseX, mouseY) - particle.Position) * InitialVel;
-        }
         private const float Gravity = 100f;
         public void ApplyGravity(Particle particle, float elapsedSeconds)
         {
@@ -171,9 +167,11 @@ namespace BParticles
             {
                 particle.Velocity.X *= -0.1f;
             }
-            if (particle.Position.Y < 0 || particle.Position.Y > screenSize.Y)
+            if (particle.Position.Y < 0 || particle.Position.Y > screenSize.Y - floor_height + RandomHelper.NextFloat(0,4))
             {
-                particle.Velocity.Y *= -0.1f;
+                particle.Velocity.Y = 0;
+                particle.TotalFrames = 1;
+                particle.Scale = 0.7f;
             }
         }
 
@@ -189,12 +187,47 @@ namespace BParticles
         private void SetSnowAttributes(Particle particle)
         {
             particle.Position = new Vector2(RandomHelper.NextFloat(0, Window.ClientBounds.Width), 0);
-            particle.Scale = (float)MathHelper.Clamp(RandomHelper.NextFloat(0.2f, 0.5f), 0.2f, 0.5f);
-            particle.Lifespan = RandomHelper.NextFloat(5f, 10f);
+            particle.Scale = (float)MathHelper.Clamp(RandomHelper.NextFloat(1f, 1.2f), 1f, 1.2f);
+            particle.Lifespan = RandomHelper.NextFloat(5f, 100f);
             particle.Color = Color.White * RandomHelper.NextFloat(0.5f, 1f);
             particle.Velocity = new Vector2(0, RandomHelper.NextFloat(30f, 100f)); // Falling vertically
         }
 
+        private void Friction(Particle particle,float elapsedSeconds)
+        {
+            particle.Velocity *= RandomHelper.NextFloat(0.96f,0.98f);
+        }
+        private void AttractToMouse(Particle particle, float elapsedSeconds)
+        {
+            // Get the current mouse state
+            MouseState mouseState = Mouse.GetState();
+
+            // Calculate the vector from the particle to the mouse position
+            Vector2 repulsionForce = new Vector2(mouseState.X - particle.Position.X, mouseState.Y - particle.Position.Y);
+
+            // Calculate the distance from the particle to the mouse
+            float distanceToMouse = repulsionForce.Length();
+
+            // Define a repulsion radius (you can experiment with different values)
+            float repulsionRadius = 100f;
+
+            // Check if the particle is within the repulsion radius
+            if (distanceToMouse < repulsionRadius)
+            {
+                // Normalize the repulsion force and adjust the strength
+                repulsionForce.Normalize();
+                float repulsionStrength =0; // Experiment with different values
+                if(Mouse.GetState().LeftButton == ButtonState.Pressed)
+                {
+                    repulsionStrength = 800;
+                } else if (Mouse.GetState().RightButton == ButtonState.Pressed)
+                {
+                    repulsionStrength = -1200;
+                }
+                // Update the particle's velocity based on the repulsion force
+                particle.Velocity -= repulsionForce * repulsionStrength * elapsedSeconds;
+            }
+        }
         #endregion
 
         public static Vector2 GetRandomVector(float minValue, float maxValue)
