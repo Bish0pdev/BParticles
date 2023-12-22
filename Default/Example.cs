@@ -55,9 +55,10 @@ namespace BParticles
             _particleSystem.AddSpawnModifier(RandomColor);
             _particleSystem.AddSpawnModifier(x => x.Scale = 1f);
             _particleSystem.AddSpawnModifier(x => x.Velocity = GetRandomVector(-50f, 50));
-            _particleSystem.AddSpawnModifier(x => x.Lifespan = 10f);
+            _particleSystem.AddSpawnModifier(x => x.Lifespan = 1f);
             _particleSystem.AddAttributeModifier(ApplyGravity);
             _particleSystem.AddAttributeModifier(BounceOffWalls);
+            _particleSystem.AddAttributeModifier(SampleAttributes.ColorChangeOverTime);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -122,7 +123,7 @@ namespace BParticles
             base.Draw(gameTime);
         }
 
-        #region Example Particle Modifiers
+        #region Particle Modifiers
 
         public void RandomColor(Particle particle)
         {
@@ -144,25 +145,6 @@ namespace BParticles
             // Apply the gravitational force in the downward direction (assuming positive Y is downward)
             particle.Velocity += new Vector2(0, acceleration);
         }
-
-        public void ChangeSize(Particle particle, float elapsedSeconds)
-        {
-            float growthRate = 0.1f; // Adjust as needed
-            particle.Scale += growthRate * elapsedSeconds;
-        }
-
-        public void DampVelocity(Particle particle, float elapsedSeconds)
-        {
-            float dampingFactor = 0.98f; // Adjust as needed
-            particle.Velocity *= MathF.Pow(dampingFactor, elapsedSeconds);
-        }
-
-        public void SinusoidalMotion(Particle particle, float elapsedSeconds)
-        {
-            float frequency = 2.0f; // Adjust as needed
-            float amplitude = 0.1f; // Adjust as needed
-            particle.Position.Y += amplitude * MathF.Sin(frequency * particle.Position.X);
-        }
         public void BounceOffWalls(Particle particle, float elapsedSeconds)
         {
             Vector2 screenSize = new Vector2(Window.ClientBounds.Width, Window.ClientBounds.Height); // Adjust as needed
@@ -175,16 +157,6 @@ namespace BParticles
             {
                 particle.Velocity.Y *= -1 / damping;
             }
-        }
-
-        public void RotateAroundPoint(Particle particle, float elapsedSeconds)
-        {
-            Vector2 rotationCenter = _ScreenCenter; // Adjust as needed
-            float rotationSpeed = MathHelper.ToRadians(90); // Adjust as needed
-            Vector2 offset = particle.Position - rotationCenter;
-            Matrix rotationMatrix = Matrix.CreateRotationZ(rotationSpeed * elapsedSeconds);
-            offset = Vector2.Transform(offset, rotationMatrix);
-            particle.Position = rotationCenter + offset;
         }
         #endregion
 
