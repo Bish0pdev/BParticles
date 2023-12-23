@@ -59,6 +59,7 @@ namespace BParticles
             _particleSystem.AddAttributeModifier(ApplyGravity);
             _particleSystem.AddAttributeModifier(BounceOffWalls);
             _particleSystem.AddAttributeModifier(SampleAttributes.ColorChangeOverTime);
+            _particleSystem.AddAttributeModifier(RandomColorFRram);
             _particleSystem.SystemPosition = _ScreenCenter;
             _particleSystem.Play();
 
@@ -126,6 +127,16 @@ namespace BParticles
         #region Particle Modifiers
 
         public void RandomColor(Particle particle)
+        {
+            particle.Color = new Color(
+            (float)random.NextDouble(), // Red component
+            (float)random.NextDouble(), // Green component
+            (float)random.NextDouble(), // Blue component
+            1.0f                         // Alpha component (fully opaque)
+            );
+        }
+
+        public void RandomColorFRram(Particle particle, float t)
         {
             particle.Color = new Color(
             (float)random.NextDouble(), // Red component
