@@ -80,8 +80,9 @@ namespace BParticles
                 x.Scale = SnowballRadius;
                 x.Position = new Vector2(mouseState.X, mouseState.Y);
             });
-            SnowballTemplate.AddAttributeModifier(InfiniteLifespan);
             SnowballTemplate.AddAttributeModifier(SnowballModifier);
+            SnowballTemplate.AddAttributeModifier(InfiniteLifespan);
+            
             SnowballTemplate.SystemPosition = _ScreenCenter;
         }
 
@@ -325,15 +326,23 @@ namespace BParticles
 
             // Check for collisions with the window boundaries (you can customize this based on your game's world)
             // For simplicity, we'll assume the window has dimensions defined by Viewport.Width and Viewport.Height
-            if (particle.Position.X < 0)
+            if (particle.Position.X <= 0)
             {
-                particle.Position.X = 0;
-                particle.Velocity.X *= -1; // Reflect the velocity on collision
+                for (int i = 0; i < SnowballDensity; i++)
+                {
+                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2, 2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
+                }
+
+                particle.parentSystem.ClearParticles();
             }
-            else if (particle.Position.X > Window.ClientBounds.Width)
+            else if (particle.Position.X >= Window.ClientBounds.Width)
             {
-                particle.Position.X = Window.ClientBounds.Width;
-                particle.Velocity.X *= -1; // Reflect the velocity on collision
+                for (int i = 0; i < SnowballDensity; i++)
+                {
+                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2, 2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
+                }
+
+                particle.parentSystem.ClearParticles();
             }
 
             if (particle.Position.Y < 0)
@@ -345,15 +354,20 @@ namespace BParticles
             {
                 for (int i = 0; i < SnowballDensity; i++)
                 {
-                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2,2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
+                    Snow.AddParticle(particle.Position + new Vector2(0, RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
                 }
-                
-                particle.Lifespan = 0;
+
+                particle.parentSystem.ClearParticles();
             }
+        }
+
+        public void DestroySnowball(ParticleSystem s)
+        {
+            activeSnowballs.Remove(s);
         }
         public void HoldParticle(Particle particle,float elapsedSeconds) {
             particle.Position = new Vector2(mouseState.X, mouseState.Y);
-            particle.Velocity = mouseVelocity;
+            particle.Velocity = mouseVelocity/5;
         }
         #endregion
 
