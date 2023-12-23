@@ -13,6 +13,7 @@ namespace BParticles
         private SpriteBatch _spriteBatch;
 
         private ParticleSystem Snow;
+        private ParticleSystem SnowballTemplate;
         private Vector2 _ScreenCenter;
         private Random random = new Random();
         float elapsedSpawnTime = 0.0f;
@@ -23,6 +24,17 @@ namespace BParticles
         public Vector2 initialdir = Vector2.Zero;
 
         Texture2D pixelTexture;
+
+        private ParticleSystem heldsnowball;
+        Vector2 mouseVelocity = Vector2.Zero;
+        float SnowballRadius = 2;
+        float SnowballDensity = 12;
+        MouseState mouseState;
+        bool rmousebutton, lmousebutton;
+        List<Particle> particlesinradius = new List<Particle>();
+        private List<ParticleSystem> activeSnowballs = new List<ParticleSystem>();
+        private Vector2 previousMousePosition = Vector2.Zero;
+
         public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -45,11 +57,12 @@ namespace BParticles
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             pixelTexture = Content.Load<Texture2D>("square");
+            Texture2D snowballtexture = Content.Load<Texture2D>("circle");
             Texture2D animsquareTexture = Content.Load<Texture2D>("animsquare");
             font = Content.Load<SpriteFont>("Holofont");
 
 
-            //Example particle system, Feel free to play with this
+            //Build the Snow particle System
             Snow = new ParticleSystem(animsquareTexture, 2, 0.1f);
             Snow.SpawnRate = 0.01f;
             Snow.AddSpawnModifier(SetSnowAttributes);
@@ -60,18 +73,70 @@ namespace BParticles
             Snow.SystemPosition = _ScreenCenter;
             Snow.Play();
 
+            //Build the Snowball Template
+            SnowballTemplate = new ParticleSystem(snowballtexture);
+            SnowballTemplate.AddSpawnModifier(x =>
+            {
+                x.Scale = SnowballRadius;
+                x.Position = new Vector2(mouseState.X, mouseState.Y);
+            });
+            SnowballTemplate.AddAttributeModifier(InfiniteLifespan);
+            SnowballTemplate.AddAttributeModifier(SnowballModifier);
+            SnowballTemplate.SystemPosition = _ScreenCenter;
         }
 
         protected override void Update(GameTime gameTime)
         {
+            
+
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
+
+            mouseState = Mouse.GetState();
+            rmousebutton = mouseState.RightButton == ButtonState.Pressed;
+            lmousebutton = mouseState.LeftButton == ButtonState.Pressed;
+
+            mouseState = Mouse.GetState();
+            Vector2 currentMousePosition = new Vector2(mouseState.X, mouseState.Y);
+
+            // Calculate mouse velocity
+            mouseVelocity = (currentMousePosition - previousMousePosition) / (float)gameTime.ElapsedGameTime.TotalSeconds;
+            // Store current mouse position for the next frame
+            previousMousePosition = currentMousePosition;
             if (Keyboard.GetState().IsKeyDown(Keys.F1))
             {
                 // Destroy all active particles
                 Snow.ClearParticles();
+                foreach (var snowball in activeSnowballs)
+                {
+                    snowball.ClearParticles();
+                }
+                activeSnowballs.Clear();
             }
             Snow.Update(gameTime);
+            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius);
+            if (particlesinradius.Count>=SnowballDensity && heldsnowball == null)
+            {
+                if (particlesinradius.Count >= SnowballDensity && heldsnowball == null)
+                {
+                    // Create a single snowball system
+                    heldsnowball = SnowballTemplate.Duplicate();
+                    heldsnowball.AddSpawnModifier(x => x.Position = new Vector2(mouseState.X, mouseState.Y));
+                    heldsnowball.AddParticle(heldsnowball.spawnModifiers);
+                    activeSnowballs.Add(heldsnowball);
+                    heldsnowball.AddAttributeModifier(HoldParticle);
+                    // Remove particles in the radius from the Snow system
+                    foreach (var particle in particlesinradius)
+                    {
+                        Snow.particles.Remove(particle);
+                    }
+                }
+            }
+            foreach (var snowball in activeSnowballs)
+            {
+                snowball.Update(gameTime);
+            }
+            activeSnowballs.RemoveAll(snowball => snowball.particles.Count == 0);
             base.Update(gameTime);
         }
 
@@ -87,7 +152,6 @@ namespace BParticles
             DepthStencilState.None,
             RasterizerState.CullNone,
             null);
-            
 
             _spriteBatch.Draw(
             pixelTexture,
@@ -96,6 +160,12 @@ namespace BParticles
             );
 
             Snow.Draw(_spriteBatch);
+
+            // Draw active snowballs
+            foreach (var snowball in activeSnowballs)
+            {
+                snowball.Draw(_spriteBatch);
+            }
             _spriteBatch.End();
 
             _spriteBatch.Begin();
@@ -200,7 +270,7 @@ namespace BParticles
         private void AttractToMouse(Particle particle, float elapsedSeconds)
         {
             // Get the current mouse state
-            MouseState mouseState = Mouse.GetState();
+            
 
             // Calculate the vector from the particle to the mouse position
             Vector2 repulsionForce = new Vector2(mouseState.X - particle.Position.X, mouseState.Y - particle.Position.Y);
@@ -210,23 +280,80 @@ namespace BParticles
 
             // Define a repulsion radius (you can experiment with different values)
             float repulsionRadius = 100f;
-
+            
             // Check if the particle is within the repulsion radius
             if (distanceToMouse < repulsionRadius)
             {
                 // Normalize the repulsion force and adjust the strength
                 repulsionForce.Normalize();
                 float repulsionStrength =0; // Experiment with different values
-                if(Mouse.GetState().LeftButton == ButtonState.Pressed)
+                if(lmousebutton)
                 {
                     repulsionStrength = 800;
-                } else if (Mouse.GetState().RightButton == ButtonState.Pressed)
+                } else if (rmousebutton)
                 {
                     repulsionStrength = -1200;
+                }
+                if(!rmousebutton && heldsnowball != null) {
+                    heldsnowball.RemoveAttributeModifier(HoldParticle);
+                    heldsnowball = null;
                 }
                 // Update the particle's velocity based on the repulsion force
                 particle.Velocity -= repulsionForce * repulsionStrength * elapsedSeconds;
             }
+        }
+
+        private void InfiniteLifespan(Particle particle,float t)
+        {
+            particle.Lifespan = 1;
+        }
+
+        public void SnowballModifier(Particle particle, float elapsedSeconds)
+        {
+            // Define gravity (you can adjust the value as needed)
+            Vector2 gravity = new Vector2(0, 100f);
+
+            // Update particle velocity based on gravity
+            particle.Velocity += gravity * elapsedSeconds;
+
+            // Update particle position based on velocity
+            particle.Position += particle.Velocity * elapsedSeconds;
+
+            // Add damping to simulate air resistance (you can adjust the value as needed)
+            float dampingFactor = 0.98f;
+            particle.Velocity *= dampingFactor;
+
+            // Check for collisions with the window boundaries (you can customize this based on your game's world)
+            // For simplicity, we'll assume the window has dimensions defined by Viewport.Width and Viewport.Height
+            if (particle.Position.X < 0)
+            {
+                particle.Position.X = 0;
+                particle.Velocity.X *= -1; // Reflect the velocity on collision
+            }
+            else if (particle.Position.X > Window.ClientBounds.Width)
+            {
+                particle.Position.X = Window.ClientBounds.Width;
+                particle.Velocity.X *= -1; // Reflect the velocity on collision
+            }
+
+            if (particle.Position.Y < 0)
+            {
+                particle.Position.Y = 0;
+                particle.Velocity.Y *= -1; // Reflect the velocity on collision
+            }
+            else if (particle.Position.Y > Window.ClientBounds.Height - floor_height)
+            {
+                for (int i = 0; i < SnowballDensity; i++)
+                {
+                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2,2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
+                }
+                
+                particle.Lifespan = 0;
+            }
+        }
+        public void HoldParticle(Particle particle,float elapsedSeconds) {
+            particle.Position = new Vector2(mouseState.X, mouseState.Y);
+            particle.Velocity = mouseVelocity;
         }
         #endregion
 
@@ -237,15 +364,7 @@ namespace BParticles
             float y = (float)(random.NextDouble() * (maxValue - minValue) + minValue);
             return new Vector2(x, y);
         }
+
     }
 
-}
-public static class RandomHelper
-{
-    private static Random random = new Random();
-
-    public static float NextFloat(float minValue, float maxValue)
-    {
-        return (float)(random.NextDouble() * (maxValue - minValue) + minValue);
-    }
 }
