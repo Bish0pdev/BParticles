@@ -72,7 +72,7 @@ namespace BParticles
 
         public int SnowballRadius = 2;
         public int SnowballDensity = 12;
-        public float veltobreak = 50f;
+        public float veltobreak = 200f;
         public float growamount = 0.001f;
 
 
@@ -129,7 +129,7 @@ namespace BParticles
             activeSnowballs.AddAttributeModifier(SnowballModifier);
             activeSnowballs.AddAttributeModifier(InfiniteLifespan);
             activeSnowballs.AddAttributeModifier(AttractToMouse);
-            //activeSnowballs.AddAttributeModifier(MergeOnCollision);
+            activeSnowballs.AddAttributeModifier(CollideWithOthers);
             activeSnowballs.SystemPosition = _ScreenCenter;
 
         }
@@ -163,17 +163,19 @@ namespace BParticles
             }
 
             Snow.Update(gameTime);
-            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius * 10);
+            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius);
             
             if (particlesinradius.Count >= SnowballDensity)
             {
+                float particleSize = SnowballRadius * (particlesinradius.Count / SnowballDensity);
                 // Create a single snowball system
-                activeSnowballs.AddParticle(activeSnowballs.spawnModifiers);
-
+                Particle newsnoball = activeSnowballs.AddParticle(activeSnowballs.spawnModifiers);
+                newsnoball.Scale = SnowballDensity / (particleSize * Getactualsize(newsnoball));
+                newsnoball.Scale *= .01f;
                 // Remove particles in the radius from the Snow system
                 foreach (var particle in particlesinradius)
                 {
-                    Snow.particles.Remove(particle);
+                    particle.RemoveParticle();
                 }
             }
 
@@ -223,6 +225,11 @@ namespace BParticles
             );
         }
 
+        private float Getactualsize(Particle particle)
+        {
+            return SnowballRadius * (particle.Scale * 100);
+        }
+
         private const float Gravity = 100f;
         public void ApplyGravity(Particle particle, float elapsedSeconds)
         {
@@ -249,7 +256,10 @@ namespace BParticles
         }
         private void SetSnowAttributes(Particle particle)
         {
-            particle.Position = new Vector2(RandomHelper.NextFloat(0, Window.ClientBounds.Width), 0);
+            if (particle.Position == particle.parentSystem.SystemPosition)
+            {
+                particle.Position = new Vector2(RandomHelper.NextFloat(0, Window.ClientBounds.Width), 0);
+            }
             particle.Scale = (float)MathHelper.Clamp(RandomHelper.NextFloat(1f, 1.2f), 1f, 1.2f);
             particle.Lifespan = RandomHelper.NextFloat(5f, 100f);
             particle.Color = Color.White * RandomHelper.NextFloat(0.5f, 1f);
@@ -287,47 +297,38 @@ namespace BParticles
                 {
                     repulsionStrength = -1200;
                 }
-                
                 // Update the particle's velocity based on the repulsion force
                 particle.Velocity -= repulsionForce * repulsionStrength * elapsedSeconds;
             }
         }
-        public void MergeOnCollision(Particle particle, float elapsedSeconds)
+        public void CollideWithOthers(Particle particle, float elapsedSeconds)
         {
-            List<Particle> list = new List<Particle>();
             // Check for collisions with other particles in the system
-            foreach (var otherParticle in particle.parentSystem.particles)
+            if (particle.parentSystem != null)
             {
-                if (particle != otherParticle)
+                for (int i = 0; i < particle.parentSystem.particles.Count; i++)
                 {
-                    float distance = Vector2.Distance(particle.Position, otherParticle.Position);
-                    float combinedRadius = SnowballRadius * (particle.Scale * 100) + SnowballRadius * (otherParticle.Scale * 100);
-                    if (distance < combinedRadius)
+                    Particle otherParticle = particle.parentSystem.particles[i];
+                    if (particle != otherParticle)
                     {
-                        // Merge particles on collision
-                        list.Add(otherParticle);
-                        
+                        float distance = Vector2.Distance(particle.Position, otherParticle.Position);
+                        float combinedRadius = Getactualsize(particle) + SnowballRadius * (otherParticle.Scale * 100);
+
+                        if (distance < combinedRadius)
+                        {
+                            // Calculate the collision normal
+                            Vector2 collisionNormal = Vector2.Normalize(particle.Position - otherParticle.Position);
+
+                            // Calculate the overlap distance
+                            float overlap = combinedRadius - distance;
+
+                            // Move particles along the collision normal to separate them
+                            particle.Position += collisionNormal * (overlap / 2);
+                            otherParticle.Position -= collisionNormal * (overlap / 2);
+                        }
                     }
                 }
             }
-            foreach (Particle item in list)
-            {
-                activeSnowballs.AddParticle(MergeSnowballs(particle, item));
-            }
-        }
-        public Particle MergeSnowballs(Particle particle1, Particle particle2)
-        {
-            Particle particle = new Particle();
-            // Example: Merge properties of particle2 into particle1
-            particle.Position = (particle1.Position + particle2.Position) / 2;
-            particle.Velocity = (particle1.Velocity + particle2.Velocity) / 2;
-            particle.Lifespan += particle2.Lifespan; // Combine lifespans
-            particle.Scale = (particle1.Scale + particle2.Scale);
-            particle.Texture = particle1.Texture;
-            particle.parentSystem = activeSnowballs;
-            particle1.RemoveParticle();
-            particle2.RemoveParticle();
-            return particle;
         }
         private void InfiniteLifespan(Particle particle,float t)
         {
@@ -345,10 +346,32 @@ namespace BParticles
             
 
             // Add damping to simulate air resistance (you can adjust the value as needed)
-            float dampingFactor = 0.98f;
+            float dampingFactor = 0.99f;
             particle.Velocity *= dampingFactor;
-            float actualscale = SnowballRadius * (particle.Scale * 100);
             // Check for particles in radius
+            float actualscale = Getactualsize(particle);
+            if (particle.Position.X <= 0 + actualscale || particle.Position.X >= Window.ClientBounds.Width - actualscale ||
+                particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
+            {
+                if (particle.Velocity.Length() > veltobreak)
+                {
+                    
+                    // Create burst particles in a circle
+                    BurstSnowball(particle, actualscale);
+                    particle.RemoveParticle();
+                }
+                else
+                {
+                    // Keep the particle  from going into the floor
+                    particle.Position.Y = Math.Min(particle.Position.Y, Window.ClientBounds.Height - floor_height - actualscale);
+                    if (particle.Velocity.Y < 0)
+                    {
+                        particle.Velocity.Y = 0f;
+                    }
+                }
+            }
+            particle.Position += particle.Velocity * elapsedSeconds;
+
             List<Particle> list = Snow.ParticlesInRadius(particle.Position, actualscale);
             if (list.Count != 0)
             {
@@ -357,44 +380,18 @@ namespace BParticles
                     Snow.particles.Remove(item);
 
                     particle.Scale += growamount;
+                    particle.Position.Y += growamount;
 
-                    
                 }
 
             }
-            if (particle.Position.X <= 0 + actualscale || particle.Position.X >= Window.ClientBounds.Width - actualscale ||
-                particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
-            {
-                if (particle.Velocity.Length() > veltobreak)
-                {
-                    // Create burst particles in a circle
-                    for (int i = 0; i < SnowballDensity * (particle.Scale * 100); i++)
-                    {
-                        float angle = MathHelper.TwoPi * i / (SnowballDensity * (particle.Scale * 100));
-                        float radius = RandomHelper.NextFloat(0,actualscale);
+        }
 
-                        float offsetX = (float)Math.Cos(angle) * radius;
-                        float offsetY = (float)Math.Sin(angle) * radius;
-
-                        Vector2 offset = new Vector2(offsetX, offsetY);
-
-                        Snow.AddParticle(particle.Position + offset, Vector2.Zero).Velocity = particle.Velocity;
-                    }
-
-                    particle.RemoveParticle();
-                }
-                else
-                {
-                    if (particle.Velocity.Length() >= 0)
-                    {
-                        particle.Velocity.Y = 0;
-                    }
-                }
-            }
-            particle.Position += particle.Velocity * elapsedSeconds;
-
+        private void BurstSnowball(Particle particle, float scale)
+        {
             
         }
+
         public void HoldParticle(Particle particle,float elapsedSeconds) {
             particle.Position = new Vector2(mouseState.X, mouseState.Y);
             particle.Velocity = mouseVelocity/5;
