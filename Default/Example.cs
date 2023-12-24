@@ -9,38 +9,79 @@ using System.Diagnostics;
 
 namespace BParticles
 {
+    public class CheatMenu
+    {
+        private bool isOpen = false;
+
+        public void Toggle()
+        {
+            isOpen = !isOpen;
+        }
+
+        public void Draw(Example game,SpriteFont font,SpriteBatch batch,GameTime gameTime,GraphicsDevice graphicsDevice)
+        {
+            if (isOpen)
+            {   
+                // Set the position for the debug information
+                Vector2 debugPosition = new Vector2(10, 10);
+
+                // Set the color for the debug information
+                Color debugColor = Color.White;
+                batch.Begin();
+
+                batch.DrawString(font, $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+
+                batch.DrawString(font, $"Draw Calls: {graphicsDevice.Metrics.DrawCount}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+                // Draw each public variable's debug information
+                batch.DrawString(font, $"SnowballRadius: {game.SnowballRadius}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+
+                batch.DrawString(font, $"SnowballDensity: {game.SnowballDensity}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+
+                batch.DrawString(font, $"veltobreak: {game.veltobreak}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+
+                batch.DrawString(font, $"growamount: {game.growamount}", debugPosition, debugColor);
+                debugPosition.Y += font.LineSpacing;
+
+                batch.DrawString(font, $"Mouse X: {game.mouseState.X}, Mouse Y: {game.mouseState.Y}", debugPosition, debugColor);
+                batch.End();
+            }
+        }
+    }
     public class Example : Game
     {
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
+        private SpriteFont font;
+        private Texture2D pixelTexture;
 
-        private ParticleSystem Snow;
-        private ParticleSystem SnowballTemplate;
-        private Vector2 _ScreenCenter;
+        public ParticleSystem Snow;
+        public ParticleSystem activeSnowballs;
+
         private Random random = new Random();
-        float elapsedSpawnTime = 0.0f;
+        private float elapsedSpawnTime = 0.0f;
 
-        private int floor_height = 100;
-
-        SpriteFont font;
-        public Vector2 initialdir = Vector2.Zero;
-
-        Texture2D pixelTexture;
-
-        private ParticleSystem heldsnowball;
-        Vector2 mouseVelocity = Vector2.Zero;
-        int SnowballRadius = 2;
-        int SnowballDensity = 12;
-        MouseState mouseState;
-        bool rmousebutton, lmousebutton;
-        List<Particle> particlesinradius = new List<Particle>();
-        private List<ParticleSystem> activeSnowballs = new List<ParticleSystem>();
+        public MouseState mouseState;
+        private bool rmousebutton, lmousebutton;
+        private Vector2 mouseVelocity = Vector2.Zero;
         private Vector2 previousMousePosition = Vector2.Zero;
-        float veltobreak = 50f;
-        float growamount = 0.001f;
+
+        public int SnowballRadius = 2;
+        public int SnowballDensity = 12;
+        public float veltobreak = 50f;
+        public float growamount = 0.001f;
 
 
+        private Vector2 _ScreenCenter;
+        private Vector2 initialdir = Vector2.Zero;
+        public int floor_height = 100;
+        private List<Particle> particlesinradius = new List<Particle>();
 
+        private CheatMenu debugmenu = new CheatMenu();
         public Example()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -54,9 +95,8 @@ namespace BParticles
         {
             // TODO: Add your initialization logic here
             _ScreenCenter = new Vector2(Window.ClientBounds.Width/2,Window.ClientBounds.Height/2);
-            Window.Title = "BParticles Example";
+            Window.Title = "Snow!";
             Window.AllowUserResizing = false;
-
             base.Initialize();
         }
 
@@ -80,23 +120,22 @@ namespace BParticles
             Snow.SystemPosition = _ScreenCenter;
             Snow.Play();
             //Build the Snowball Template
-            SnowballTemplate = new ParticleSystem(CreateCircleTexture(GraphicsDevice,SnowballRadius*100));
-            SnowballTemplate.AddSpawnModifier(x =>
+            activeSnowballs = new ParticleSystem(CreateCircleTexture(GraphicsDevice,SnowballRadius*100));
+            activeSnowballs.AddSpawnModifier(x =>
             {
                 x.Scale = 0.01f;
                 x.Position = new Vector2(mouseState.X, mouseState.Y);
             });
-            SnowballTemplate.AddAttributeModifier(SnowballModifier);
-            SnowballTemplate.AddAttributeModifier(InfiniteLifespan);
-            
-            SnowballTemplate.SystemPosition = _ScreenCenter;
+            activeSnowballs.AddAttributeModifier(SnowballModifier);
+            activeSnowballs.AddAttributeModifier(InfiniteLifespan);
+            activeSnowballs.AddAttributeModifier(AttractToMouse);
+            //activeSnowballs.AddAttributeModifier(MergeOnCollision);
+            activeSnowballs.SystemPosition = _ScreenCenter;
 
         }
 
         protected override void Update(GameTime gameTime)
         {
-            
-
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
@@ -107,53 +146,41 @@ namespace BParticles
             mouseState = Mouse.GetState();
             Vector2 currentMousePosition = new Vector2(mouseState.X, mouseState.Y);
 
-            // Calculate mouse velocity
             mouseVelocity = (currentMousePosition - previousMousePosition) / (float)gameTime.ElapsedGameTime.TotalSeconds;
-            // Store current mouse position for the next frame
+
             previousMousePosition = currentMousePosition;
+
             if (Keyboard.GetState().IsKeyDown(Keys.F1))
             {
                 // Destroy all active particles
                 Snow.ClearParticles();
-                foreach (var snowball in activeSnowballs)
-                {
-                    snowball.ClearParticles();
-                }
-                activeSnowballs.Clear();
+                activeSnowballs.ClearParticles();
             }
+
+            if (Keyboard.GetState().IsKeyDown(Keys.F2))
+            {
+                debugmenu.Toggle();
+            }
+
             Snow.Update(gameTime);
-            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius*10);
-            if (particlesinradius.Count>=SnowballDensity && heldsnowball == null)
+            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius * 10);
+            
+            if (particlesinradius.Count >= SnowballDensity)
             {
-                if (particlesinradius.Count >= SnowballDensity && heldsnowball == null)
+                // Create a single snowball system
+                activeSnowballs.AddParticle(activeSnowballs.spawnModifiers);
+
+                // Remove particles in the radius from the Snow system
+                foreach (var particle in particlesinradius)
                 {
-                    // Create a single snowball system
-                    heldsnowball = SnowballTemplate.Duplicate();
-                    heldsnowball.AddSpawnModifier(x => x.Position = new Vector2(mouseState.X, mouseState.Y));
-                    heldsnowball.AddParticle(heldsnowball.spawnModifiers);
-                    activeSnowballs.Add(heldsnowball);
-                    heldsnowball.AddAttributeModifier(HoldParticle);
-                    // Remove particles in the radius from the Snow system
-                    foreach (var particle in particlesinradius)
-                    {
-                        Snow.particles.Remove(particle);
-                    }
+                    Snow.particles.Remove(particle);
                 }
             }
-            foreach (var snowball in activeSnowballs)
-            {
-                snowball.Update(gameTime);
-            }
-            activeSnowballs.RemoveAll(snowball => snowball.particles.Count == 0);
-            if (!rmousebutton && heldsnowball != null)
-            {
-                heldsnowball.RemoveAttributeModifier(HoldParticle);
-                heldsnowball = null;
-            }
+
+            activeSnowballs.Update(gameTime);
+
             base.Update(gameTime);
         }
-
-
 
         protected override void Draw(GameTime gameTime)
         {
@@ -175,30 +202,10 @@ namespace BParticles
             Snow.Draw(_spriteBatch);
 
             // Draw active snowballs
-            foreach (var snowball in activeSnowballs)
-            {
-                snowball.Draw(_spriteBatch);
-            }
+            activeSnowballs.Draw(_spriteBatch);
             _spriteBatch.End();
 
-            _spriteBatch.Begin();
-            // FPS counter
-            _spriteBatch.DrawString(
-                font,
-                $"FPS: {1f / gameTime.ElapsedGameTime.TotalSeconds:0}",
-                new Vector2(10, 10),
-                Color.White
-            );
-
-            // Draw Calls counter
-            _spriteBatch.DrawString(
-                font,
-                $"Draw Calls: {GraphicsDevice.Metrics.DrawCount}",
-                new Vector2(10, 30),
-                Color.White
-            );
-            //
-            _spriteBatch.End();
+            debugmenu.Draw(this,font,_spriteBatch,gameTime,GraphicsDevice);
 
             base.Draw(gameTime);
 
@@ -285,7 +292,43 @@ namespace BParticles
                 particle.Velocity -= repulsionForce * repulsionStrength * elapsedSeconds;
             }
         }
-
+        public void MergeOnCollision(Particle particle, float elapsedSeconds)
+        {
+            List<Particle> list = new List<Particle>();
+            // Check for collisions with other particles in the system
+            foreach (var otherParticle in particle.parentSystem.particles)
+            {
+                if (particle != otherParticle)
+                {
+                    float distance = Vector2.Distance(particle.Position, otherParticle.Position);
+                    float combinedRadius = SnowballRadius * (particle.Scale * 100) + SnowballRadius * (otherParticle.Scale * 100);
+                    if (distance < combinedRadius)
+                    {
+                        // Merge particles on collision
+                        list.Add(otherParticle);
+                        
+                    }
+                }
+            }
+            foreach (Particle item in list)
+            {
+                activeSnowballs.AddParticle(MergeSnowballs(particle, item));
+            }
+        }
+        public Particle MergeSnowballs(Particle particle1, Particle particle2)
+        {
+            Particle particle = new Particle();
+            // Example: Merge properties of particle2 into particle1
+            particle.Position = (particle1.Position + particle2.Position) / 2;
+            particle.Velocity = (particle1.Velocity + particle2.Velocity) / 2;
+            particle.Lifespan += particle2.Lifespan; // Combine lifespans
+            particle.Scale = (particle1.Scale + particle2.Scale);
+            particle.Texture = particle1.Texture;
+            particle.parentSystem = activeSnowballs;
+            particle1.RemoveParticle();
+            particle2.RemoveParticle();
+            return particle;
+        }
         private void InfiniteLifespan(Particle particle,float t)
         {
             particle.Lifespan = 1;
@@ -319,32 +362,35 @@ namespace BParticles
                 }
 
             }
-
-            // Check for collisions with the window boundaries (you can customize this based on your game's world)
-            // For simplicity, we'll assume the window has dimensions defined by Viewport.Width and Viewport.Height
-            if (particle.Position.X <= 0 || particle.Position.X >= Window.ClientBounds.Width ||
-                 particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
+            if (particle.Position.X <= 0 + actualscale || particle.Position.X >= Window.ClientBounds.Width - actualscale ||
+                particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
             {
                 if (particle.Velocity.Length() > veltobreak)
                 {
-                    // Create burst particles
+                    // Create burst particles in a circle
                     for (int i = 0; i < SnowballDensity * (particle.Scale * 100); i++)
                     {
-                        Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2 * actualscale / 2, 2 * actualscale / 2), RandomHelper.NextFloat(-actualscale, 0)) - new Vector2(0, -actualscale / 2), Vector2.Zero).Velocity = particle.Velocity;
+                        float angle = MathHelper.TwoPi * i / (SnowballDensity * (particle.Scale * 100));
+                        float radius = RandomHelper.NextFloat(0,actualscale);
 
+                        float offsetX = (float)Math.Cos(angle) * radius;
+                        float offsetY = (float)Math.Sin(angle) * radius;
+
+                        Vector2 offset = new Vector2(offsetX, offsetY);
+
+                        Snow.AddParticle(particle.Position + offset, Vector2.Zero).Velocity = particle.Velocity;
                     }
 
-                    // Clear particles in the parent system
-                    particle.parentSystem.ClearParticles();
-                } else
+                    particle.RemoveParticle();
+                }
+                else
                 {
-                    if(particle.Velocity.Length() >= 0)
+                    if (particle.Velocity.Length() >= 0)
                     {
                         particle.Velocity.Y = 0;
                     }
                 }
             }
-            // Update particle position based on velocity
             particle.Position += particle.Velocity * elapsedSeconds;
 
             
