@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+
+
 namespace BParticles
 {
     public class Example : Game
@@ -27,13 +29,17 @@ namespace BParticles
 
         private ParticleSystem heldsnowball;
         Vector2 mouseVelocity = Vector2.Zero;
-        float SnowballRadius = 2;
-        float SnowballDensity = 12;
+        int SnowballRadius = 2;
+        int SnowballDensity = 12;
         MouseState mouseState;
         bool rmousebutton, lmousebutton;
         List<Particle> particlesinradius = new List<Particle>();
         private List<ParticleSystem> activeSnowballs = new List<ParticleSystem>();
         private Vector2 previousMousePosition = Vector2.Zero;
+        float veltobreak = 50f;
+        float growamount = 0.001f;
+
+
 
         public Example()
         {
@@ -50,6 +56,7 @@ namespace BParticles
             _ScreenCenter = new Vector2(Window.ClientBounds.Width/2,Window.ClientBounds.Height/2);
             Window.Title = "BParticles Example";
             Window.AllowUserResizing = false;
+
             base.Initialize();
         }
 
@@ -72,18 +79,18 @@ namespace BParticles
             Snow.AddAttributeModifier(Friction);
             Snow.SystemPosition = _ScreenCenter;
             Snow.Play();
-
             //Build the Snowball Template
-            SnowballTemplate = new ParticleSystem(snowballtexture);
+            SnowballTemplate = new ParticleSystem(CreateCircleTexture(GraphicsDevice,SnowballRadius*100));
             SnowballTemplate.AddSpawnModifier(x =>
             {
-                x.Scale = SnowballRadius;
+                x.Scale = 0.01f;
                 x.Position = new Vector2(mouseState.X, mouseState.Y);
             });
             SnowballTemplate.AddAttributeModifier(SnowballModifier);
             SnowballTemplate.AddAttributeModifier(InfiniteLifespan);
             
             SnowballTemplate.SystemPosition = _ScreenCenter;
+
         }
 
         protected override void Update(GameTime gameTime)
@@ -115,7 +122,7 @@ namespace BParticles
                 activeSnowballs.Clear();
             }
             Snow.Update(gameTime);
-            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius);
+            particlesinradius = Snow.ParticlesInRadius(new Vector2(mouseState.X, mouseState.Y), SnowballRadius*10);
             if (particlesinradius.Count>=SnowballDensity && heldsnowball == null)
             {
                 if (particlesinradius.Count >= SnowballDensity && heldsnowball == null)
@@ -138,6 +145,11 @@ namespace BParticles
                 snowball.Update(gameTime);
             }
             activeSnowballs.RemoveAll(snowball => snowball.particles.Count == 0);
+            if (!rmousebutton && heldsnowball != null)
+            {
+                heldsnowball.RemoveAttributeModifier(HoldParticle);
+                heldsnowball = null;
+            }
             base.Update(gameTime);
         }
 
@@ -189,6 +201,7 @@ namespace BParticles
             _spriteBatch.End();
 
             base.Draw(gameTime);
+
         }
 
         #region Example Particle Modifiers
@@ -213,24 +226,6 @@ namespace BParticles
             particle.Velocity += new Vector2(0, acceleration);
         }
 
-        public void ChangeSize(Particle particle, float elapsedSeconds)
-        {
-            float growthRate = 0.1f; // Adjust as needed
-            particle.Scale += growthRate * elapsedSeconds;
-        }
-
-        public void DampVelocity(Particle particle, float elapsedSeconds)
-        {
-            float dampingFactor = 0.98f; // Adjust as needed
-            particle.Velocity *= MathF.Pow(dampingFactor, elapsedSeconds);
-        }
-
-        public void SinusoidalMotion(Particle particle, float elapsedSeconds)
-        {
-            float frequency = 2.0f; // Adjust as needed
-            float amplitude = 0.1f; // Adjust as needed
-            particle.Position.Y += amplitude * MathF.Sin(frequency * particle.Position.X);
-        }
         public void BounceOffWalls(Particle particle, float elapsedSeconds)
         {
             Vector2 screenSize = new Vector2(Window.ClientBounds.Width, Window.ClientBounds.Height); // Adjust as needed
@@ -244,16 +239,6 @@ namespace BParticles
                 particle.TotalFrames = 1;
                 particle.Scale = 0.7f;
             }
-        }
-
-        public void RotateAroundPoint(Particle particle, float elapsedSeconds)
-        {
-            Vector2 rotationCenter = _ScreenCenter; // Adjust as needed
-            float rotationSpeed = MathHelper.ToRadians(90); // Adjust as needed
-            Vector2 offset = particle.Position - rotationCenter;
-            Matrix rotationMatrix = Matrix.CreateRotationZ(rotationSpeed * elapsedSeconds);
-            offset = Vector2.Transform(offset, rotationMatrix);
-            particle.Position = rotationCenter + offset;
         }
         private void SetSnowAttributes(Particle particle)
         {
@@ -295,10 +280,7 @@ namespace BParticles
                 {
                     repulsionStrength = -1200;
                 }
-                if(!rmousebutton && heldsnowball != null) {
-                    heldsnowball.RemoveAttributeModifier(HoldParticle);
-                    heldsnowball = null;
-                }
+                
                 // Update the particle's velocity based on the repulsion force
                 particle.Velocity -= repulsionForce * repulsionStrength * elapsedSeconds;
             }
@@ -317,68 +299,99 @@ namespace BParticles
             // Update particle velocity based on gravity
             particle.Velocity += gravity * elapsedSeconds;
 
-            // Update particle position based on velocity
-            particle.Position += particle.Velocity * elapsedSeconds;
+            
 
             // Add damping to simulate air resistance (you can adjust the value as needed)
             float dampingFactor = 0.98f;
             particle.Velocity *= dampingFactor;
+            float actualscale = SnowballRadius * (particle.Scale * 100);
+            // Check for particles in radius
+            List<Particle> list = Snow.ParticlesInRadius(particle.Position, actualscale);
+            if (list.Count != 0)
+            {
+                foreach (Particle item in list)
+                {
+                    Snow.particles.Remove(item);
+
+                    particle.Scale += growamount;
+
+                    
+                }
+
+            }
 
             // Check for collisions with the window boundaries (you can customize this based on your game's world)
             // For simplicity, we'll assume the window has dimensions defined by Viewport.Width and Viewport.Height
-            if (particle.Position.X <= 0)
+            if (particle.Position.X <= 0 || particle.Position.X >= Window.ClientBounds.Width ||
+                 particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
             {
-                for (int i = 0; i < SnowballDensity; i++)
+                if (particle.Velocity.Length() > veltobreak)
                 {
-                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2, 2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
-                }
+                    // Create burst particles
+                    for (int i = 0; i < SnowballDensity * (particle.Scale * 100); i++)
+                    {
+                        Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2 * actualscale / 2, 2 * actualscale / 2), RandomHelper.NextFloat(-actualscale, 0)) - new Vector2(0, -actualscale / 2), Vector2.Zero).Velocity = particle.Velocity;
 
-                particle.parentSystem.ClearParticles();
-            }
-            else if (particle.Position.X >= Window.ClientBounds.Width)
-            {
-                for (int i = 0; i < SnowballDensity; i++)
+                    }
+
+                    // Clear particles in the parent system
+                    particle.parentSystem.ClearParticles();
+                } else
                 {
-                    Snow.AddParticle(particle.Position + new Vector2(RandomHelper.NextFloat(-2, 2), RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
+                    if(particle.Velocity.Length() >= 0)
+                    {
+                        particle.Velocity.Y = 0;
+                    }
                 }
-
-                particle.parentSystem.ClearParticles();
             }
+            // Update particle position based on velocity
+            particle.Position += particle.Velocity * elapsedSeconds;
 
-            if (particle.Position.Y < 0)
-            {
-                particle.Position.Y = 0;
-                particle.Velocity.Y *= -1; // Reflect the velocity on collision
-            }
-            else if (particle.Position.Y > Window.ClientBounds.Height - floor_height)
-            {
-                for (int i = 0; i < SnowballDensity; i++)
-                {
-                    Snow.AddParticle(particle.Position + new Vector2(0, RandomHelper.NextFloat(-2, 2)), Vector2.Zero);
-                }
-
-                particle.parentSystem.ClearParticles();
-            }
-        }
-
-        public void DestroySnowball(ParticleSystem s)
-        {
-            activeSnowballs.Remove(s);
+            
         }
         public void HoldParticle(Particle particle,float elapsedSeconds) {
             particle.Position = new Vector2(mouseState.X, mouseState.Y);
             particle.Velocity = mouseVelocity/5;
         }
         #endregion
-
-        public static Vector2 GetRandomVector(float minValue, float maxValue)
+        public static Texture2D CreateCircleTexture(GraphicsDevice graphicsDevice, int circleRadius)
         {
-            Random random = new Random();
-            float x = (float)(random.NextDouble() * (maxValue - minValue) + minValue);
-            float y = (float)(random.NextDouble() * (maxValue - minValue) + minValue);
-            return new Vector2(x, y);
-        }
+            int diameter = circleRadius * 2;
 
+            // Create a new texture for the circle
+            Texture2D circleTexture = new Texture2D(graphicsDevice, diameter, diameter);
+
+            Color[] circlePixels = new Color[diameter * diameter];
+
+            for (int x = 0; x < diameter; x++)
+            {
+                for (int y = 0; y < diameter; y++)
+                {
+                    // Calculate the distance from the center of the circle
+                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(circleRadius, circleRadius));
+
+                    // Map the 2D coordinates to the 1D array index
+                    int index = x + y * diameter;
+
+                    // Check if the pixel is inside the circle
+                    if (distance <= circleRadius)
+                    {
+                        // Set the pixel color for the circular texture
+                        circlePixels[index] = Color.White; // You can set any color here
+                    }
+                    else
+                    {
+                        // Set pixels outside the circle to transparent or any desired color
+                        circlePixels[index] = Color.Transparent;
+                    }
+                }
+            }
+
+            // Set the data for the circular texture
+            circleTexture.SetData(circlePixels);
+
+            return circleTexture;
+        }
     }
 
 }
