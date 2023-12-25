@@ -71,8 +71,8 @@ namespace BParticles
         private Vector2 previousMousePosition = Vector2.Zero;
 
         public int SnowballRadius = 2;
-        public int SnowballDensity = 12;
-        public float veltobreak = 200f;
+        public int SnowballDensity = 5;
+        public float veltobreak = 150f;
         public float growamount = 0.001f;
 
 
@@ -346,19 +346,18 @@ namespace BParticles
             
 
             // Add damping to simulate air resistance (you can adjust the value as needed)
-            float dampingFactor = 0.99f;
+            float dampingFactor = 0.985f;
             particle.Velocity *= dampingFactor;
             // Check for particles in radius
             float actualscale = Getactualsize(particle);
             if (particle.Position.X <= 0 + actualscale || particle.Position.X >= Window.ClientBounds.Width - actualscale ||
                 particle.Position.Y >= Window.ClientBounds.Height - floor_height - actualscale)
             {
-                if (particle.Velocity.Length() > veltobreak)
+                if (particle.Velocity.Y > veltobreak)
                 {
-                    
                     // Create burst particles in a circle
                     BurstSnowball(particle, actualscale);
-                    particle.RemoveParticle();
+                    
                 }
                 else
                 {
@@ -390,6 +389,19 @@ namespace BParticles
         private void BurstSnowball(Particle particle, float scale)
         {
             
+            for (int i = 0; i < (int)Math.Ceiling(scale*100); i++)
+            {
+                float angle = MathHelper.TwoPi * i / (scale * 100);
+                float radius = RandomHelper.NextFloat(0, scale);
+
+                float offsetX = (float)Math.Cos(angle) * radius;
+                float offsetY = (float)Math.Sin(angle) * radius;
+
+                Vector2 offset = new Vector2(offsetX, offsetY);
+
+                Snow.AddParticle(particle.Position + offset, Vector2.Zero).Velocity = particle.Velocity;
+            }
+            particle.RemoveParticle();
         }
 
         public void HoldParticle(Particle particle,float elapsedSeconds) {
