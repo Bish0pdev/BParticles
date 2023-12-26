@@ -34,7 +34,7 @@ _spriteBatch.End();
 _particleSystem.Play();
 ```
 
-**Here is the code to set up the example particle system given in the [ExampleScene](ExampleScene.cs)
+**Here is the code to set up an example particle system
 
 ```
 _particleSystem = new ParticleSystem(particleTexture);
